@@ -131,6 +131,9 @@ int run_vortex(ContainerConfig& config) {
     rmdir("/sys/fs/cgroup/vortex");
     delete[] stack;
 
+    // Restore terminal state in case the container's shell modified it (fixes terminal hanging)
+    system("stty sane 2>/dev/null");
+
     std::cerr << BOLD << BLUE << "\n========================================" << RESET << std::endl;
     std::cerr << GREEN << "      Vortex Container Terminated       " << RESET << std::endl;
     std::cerr << BOLD << BLUE << "========================================" << RESET << std::endl;
@@ -156,6 +159,7 @@ void show_menu() {
         if (input == "1") {
             ContainerConfig config = {"./rootfs", "vortex-container", {"/bin/sh"}};
             run_vortex(config);
+            continue; // Skip pause for shell
         } else if (input == "2") {
             clear_screen();
             system("./test_vortex.sh");
@@ -187,6 +191,7 @@ void show_menu() {
         }
         
         std::cerr << "\n" << BOLD << "Press Enter to return to menu..." << RESET;
+        std::cin.clear();
         std::string dummy;
         std::getline(std::cin, dummy);
     }
