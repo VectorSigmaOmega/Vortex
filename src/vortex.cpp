@@ -103,6 +103,9 @@ void setup_cgroups(pid_t child_pid) {
     }
 }
 
+#include <termios.h>
+#include <signal.h>
+
 int run_vortex(ContainerConfig& config) {
     clear_screen();
     print_header();
@@ -110,6 +113,11 @@ int run_vortex(ContainerConfig& config) {
     log_status("Isolating PID Namespace", true);
     log_status("Isolating Network Namespace", true);
     log_status("Preparing Mount Namespace", true);
+
+    // Save original terminal settings and process group
+    struct termios orig_termios;
+    tcgetattr(STDIN_FILENO, &orig_termios);
+    pid_t orig_pgrp = tcgetpgrp(STDIN_FILENO);
 
     const int STACK_SIZE = 1024 * 1024;
     char* stack = new char[STACK_SIZE];
@@ -131,8 +139,11 @@ int run_vortex(ContainerConfig& config) {
     rmdir("/sys/fs/cgroup/vortex");
     delete[] stack;
 
-    // Restore terminal state in case the container's shell modified it (fixes terminal hanging)
-    system("stty sane 2>/dev/null");
+    // Restore process group and terminal state
+    signal(SIGTTOU, SIG_IGN);
+    tcsetpgrp(STDIN_FILENO, orig_pgrp);
+    tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+    signal(SIGTTOU, SIG_DFL);
 
     std::cerr << BOLD << BLUE << "\n========================================" << RESET << std::endl;
     std::cerr << GREEN << "      Vortex Container Terminated       " << RESET << std::endl;
