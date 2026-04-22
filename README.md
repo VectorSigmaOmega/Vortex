@@ -60,7 +60,7 @@ sudo ./vortex run ./rootfs /usr/bin/my_script.sh
 Vortex includes a professional-grade integration test suite to verify kernel isolation.
 
 ```bash
-./test_vortex.sh
+./tests/test_vortex.sh
 ```
 
 ## 📖 Architecture

@@ -181,7 +181,7 @@ void show_menu() {
             continue; 
         } else if (input == "2") {
             render_ui("SYSTEM HEALTH CHECK");
-            auto res = system("./test_vortex.sh"); (void)res;
+            auto res = system("./tests/test_vortex.sh"); (void)res;
         } else if (input == "3") {
             render_ui("ARCHITECTURE DOCUMENTATION");
             std::cerr << "\n";
