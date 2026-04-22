@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <sys/syscall.h>
 #include <iomanip>
+#include <termios.h>
+#include <signal.h>
 
 // ANSI Colors
 #define RESET   "\033[0m"
@@ -44,13 +46,20 @@ void print_logo() {
 }
 
 void print_header() {
-    std::cerr << BOLD << BLUE << "========================================" << RESET << std::endl;
-    std::cerr << BOLD << CYAN << "          VORTEX RUNTIME v1.1           " << RESET << std::endl;
-    std::cerr << BOLD << BLUE << "========================================" << RESET << std::endl;
+    std::cerr << BOLD << BLUE << "  ========================================" << RESET << std::endl;
+    std::cerr << BOLD << CYAN << "            VORTEX RUNTIME v1.1           " << RESET << std::endl;
+    std::cerr << BOLD << BLUE << "  ========================================" << RESET << std::endl;
+}
+
+void render_ui(const std::string& title = "MANAGEMENT CONSOLE") {
+    clear_screen();
+    print_logo();
+    print_header();
+    std::cerr << "\n  " << BOLD << YELLOW << title << RESET << "\n";
 }
 
 void log_status(const std::string& action, bool success) {
-    std::cerr << std::left << std::setw(30) << (action + "...") 
+    std::cerr << "  " << std::left << std::setw(30) << (action + "...") 
               << (success ? (GREEN "[ OK ]" RESET) : (RED "[ FAIL ]" RESET)) << std::endl;
     usleep(50000); 
 }
@@ -79,7 +88,7 @@ int container_main(void* arg) {
     argv[config->args.size()] = nullptr;
 
     usleep(100000); 
-    std::cerr << BOLD << YELLOW << "\n--- Container Shell Session Started ---\n" << RESET << std::endl;
+    std::cerr << BOLD << YELLOW << "\n  --- Container Shell Session Started ---\n" << RESET << std::endl;
     if (execvp(argv[0], argv) == -1) {
         perror("execvp");
         return 1;
@@ -93,28 +102,26 @@ void setup_cgroups(pid_t child_pid) {
     int fd = open((cgroup_base + "/cgroup.procs").c_str(), O_WRONLY);
     if (fd != -1) {
         std::string pid_str = std::to_string(child_pid);
-        if (write(fd, pid_str.c_str(), pid_str.length()) == -1) perror("cgroup write");
+        write(fd, pid_str.c_str(), pid_str.length());
         close(fd);
     }
     fd = open((cgroup_base + "/memory.max").c_str(), O_WRONLY);
     if (fd != -1) {
-        if (write(fd, "104857600", 9) == -1) perror("cgroup limit write");
+        write(fd, "104857600", 9);
         close(fd);
     }
 }
 
-#include <termios.h>
-#include <signal.h>
-
-int run_vortex(ContainerConfig& config) {
-    clear_screen();
-    print_header();
+int run_vortex(ContainerConfig& config, bool interactive = true) {
+    if (interactive) {
+        render_ui("INITIALIZING CONTAINER");
+    }
+    
     log_status("Isolating UTS Namespace", true);
     log_status("Isolating PID Namespace", true);
     log_status("Isolating Network Namespace", true);
     log_status("Preparing Mount Namespace", true);
 
-    // Save original terminal settings and process group
     struct termios orig_termios;
     tcgetattr(STDIN_FILENO, &orig_termios);
     pid_t orig_pgrp = tcgetpgrp(STDIN_FILENO);
@@ -139,24 +146,22 @@ int run_vortex(ContainerConfig& config) {
     rmdir("/sys/fs/cgroup/vortex");
     delete[] stack;
 
-    // Restore process group and terminal state
     signal(SIGTTOU, SIG_IGN);
     tcsetpgrp(STDIN_FILENO, orig_pgrp);
     tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
     signal(SIGTTOU, SIG_DFL);
 
-    std::cerr << BOLD << BLUE << "\n========================================" << RESET << std::endl;
-    std::cerr << GREEN << "      Vortex Container Terminated       " << RESET << std::endl;
-    std::cerr << BOLD << BLUE << "========================================" << RESET << std::endl;
+    if (interactive) {
+        std::cerr << BOLD << BLUE << "\n  ========================================" << RESET << std::endl;
+        std::cerr << GREEN << "        Vortex Container Terminated       " << RESET << std::endl;
+        std::cerr << BOLD << BLUE << "  ========================================" << RESET << std::endl;
+    }
     return 0;
 }
 
 void show_menu() {
     while (true) {
-        clear_screen();
-        print_logo();
-        print_header();
-        std::cerr << "\n" << BOLD << YELLOW << "  MANAGEMENT CONSOLE" << RESET << "\n";
+        render_ui();
         std::cerr << "  1) " << CYAN << "Launch Interactive Shell (Alpine)" << RESET << "\n";
         std::cerr << "  2) " << CYAN << "Run Automated Health Check" << RESET << "\n";
         std::cerr << "  3) " << CYAN << "View Architecture Docs" << RESET << "\n";
@@ -170,26 +175,25 @@ void show_menu() {
         if (input == "1") {
             ContainerConfig config = {"./rootfs", "vortex-container", {"/bin/sh"}};
             run_vortex(config);
-            continue; // Skip pause for shell
+            continue; 
         } else if (input == "2") {
-            clear_screen();
+            render_ui("SYSTEM HEALTH CHECK");
             system("./test_vortex.sh");
         } else if (input == "3") {
-            clear_screen();
-            std::cerr << BOLD << YELLOW << "--- Architecture Docs ---\n" << RESET;
-            system("cat ARCHITECTURE.md");
+            render_ui("ARCHITECTURE DOCUMENTATION");
+            std::cerr << "\n";
+            system("cat ARCHITECTURE.md | sed 's/^/  /'");
         } else if (input == "4") {
-            clear_screen();
-            std::cerr << BOLD << YELLOW << "--- File Import Utility ---\n" << RESET;
+            render_ui("FILE IMPORT UTILITY");
             std::cerr << "  Example Host Path: " << CYAN << "./my_script.sh" << RESET << "\n";
             std::cerr << "  Example Dest Path: " << CYAN << "/bin/my_script.sh" << RESET << "\n";
             std::cerr << "  (Type 'q' to return to menu)\n\n";
             
             std::string src, dest;
-            std::cerr << "  Enter host file path: "; if (!std::getline(std::cin, src) || src == "q") continue;
-            std::cerr << "  Enter container dest path: "; if (!std::getline(std::cin, dest) || dest == "q") continue;
+            std::cerr << "  Enter host file path: "; if (!std::getline(std::cin, src) || src == "q" || src.empty()) continue;
+            std::cerr << "  Enter container dest path: "; if (!std::getline(std::cin, dest) || dest == "q" || dest.empty()) continue;
             
-            std::string cmd = "cp " + src + " ./rootfs" + dest + " && chmod +x ./rootfs" + dest;
+            std::string cmd = "cp " + src + " ./rootfs" + dest + " && chmod +x ./rootfs" + dest + " 2>/dev/null";
             if (system(cmd.c_str()) == 0) {
                 std::cerr << "\n" << GREEN << "  [SUCCESS] " << RESET << "File imported and made executable.\n";
             } else {
@@ -201,7 +205,7 @@ void show_menu() {
             continue;
         }
         
-        std::cerr << "\n" << BOLD << "Press Enter to return to menu..." << RESET;
+        std::cerr << "\n  " << BOLD << "Press Enter to return to menu..." << RESET;
         std::cin.clear();
         std::string dummy;
         std::getline(std::cin, dummy);
@@ -211,7 +215,7 @@ void show_menu() {
 int main(int argc, char** argv) {
     if (argc == 1) {
         if (geteuid() != 0) {
-            std::cerr << RED << "Error: Vortex management requires root privileges (sudo).\n" << RESET;
+            std::cerr << RED << "  Error: Vortex requires root privileges (sudo).\n" << RESET;
             return 1;
         }
         show_menu();
@@ -219,14 +223,13 @@ int main(int argc, char** argv) {
     }
 
     if (argc >= 4 && std::string(argv[1]) == "run") {
-        print_header();
         ContainerConfig config;
         config.rootfs = argv[2];
         config.hostname = "vortex-container";
         for (int i = 3; i < argc; ++i) config.args.push_back(argv[i]);
-        return run_vortex(config);
+        return run_vortex(config, false); // Run without UI for scripts
     }
 
-    std::cerr << "Usage:\n  " << argv[0] << " (for interactive menu)\n  " << argv[0] << " run <rootfs> <command>\n";
+    std::cerr << "Usage:\n  " << argv[0] << " (for menu)\n  " << argv[0] << " run <rootfs> <cmd>\n";
     return 1;
 }
