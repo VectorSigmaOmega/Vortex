@@ -1,79 +1,72 @@
-# Vortex - Minimalist Linux Container Runtime
+# 🌀 Vortex Container Runtime
 
-Vortex is a lightweight Linux container runtime written in C++ that demonstrates the core principles of containerization: namespaces, control groups, and filesystem isolation.
+![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg) 
+![C++](https://img.shields.io/badge/C%2B%2B-20-orange.svg) 
+![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey.svg)
+![Build](https://img.shields.io/badge/Build-Passing-brightgreen.svg)
 
-## Features
+Vortex is a high-performance, minimalist Linux container runtime built from the ground up in modern C++. It provides a "zero-dependency" approach to process isolation, resource limiting, and filesystem sandboxing.
 
-- **Namespace Isolation**:
-  - `PID`: Isolated process tree (container sees itself as PID 1).
-  - `UTS`: Isolated hostname.
-  - `Mount`: Isolated filesystem mounts.
-  - `Network`: Isolated network stack (with loopback interface).
-- **Filesystem Isolation**:
-  - Uses `pivot_root` to securely change the root filesystem.
-  - Automatically mounts `/proc` for process visibility.
-- **Resource Control**:
-  - Uses `Cgroups v2` to limit memory usage (default 100MB).
-- **Alpine Linux Support**:
-  - Designed to run with minimalist rootfs like Alpine.
+```text
+    __     __              _                 
+    \ \   / /__  _ __  ___| |_ ___  __  __   
+     \ \ / / _ \| '__|/ __| __/ _ \ \ \/ /   
+      \ V / (_) | |  | (__| ||  __/  >  <    
+       \_/ \___/|_|   \___|\__\___| /_/\_\   
+                                             
+    - Isolated. Secure. Minimalist. -
+```
 
-## Architecture
+## 🚀 Quick Start (Guided Mode)
 
-Vortex works by following these steps:
-1. **Clone**: Uses the `clone()` syscall with specific flags (`CLONE_NEWPID`, `CLONE_NEWUTS`, etc.) to create a new process in new namespaces.
-2. **Cgroups**: The parent process creates a cgroup in `/sys/fs/cgroup/vortex` and adds the child PID to it, applying resource limits.
-3. **Setup**: The child process:
-   - Sets the hostname.
-   - Bind-mounts the rootfs to itself (required for `pivot_root`).
-   - Uses `pivot_root` to swap the root filesystem and unmounts the old root.
-   - Mounts `/proc`.
-   - Brings up the `lo` loopback interface.
-4. **Exec**: Replaces the child process with the target command using `execvp`.
-
-## How to Run
-
-### Prerequisites
-
-- Linux Kernel with Cgroups v2 support.
-- Root privileges (or `CAP_SYS_ADMIN` capabilities).
-- `g++` and `make`.
-
-### 1. Build
+Vortex features an interactive management console to simplify container operations.
 
 ```bash
 make
-```
-
-### 2. Setup RootFS
-
-Download and extract a minimalist Alpine RootFS:
-
-```bash
 ./setup_rootfs.sh
+sudo ./vortex
 ```
 
-### 3. Run a Container
+## 🛠 Features
+
+- **Namespace Isolation**: Full UTS, PID, Mount, and Network stack isolation.
+- **Filesystem Jail**: Securely jails processes using `pivot_root` (more robust than `chroot`).
+- **Resource Limits**: Enforces hardware limits (CPU/Memory) via **Cgroups v2**.
+- **Modern TUI**: A polished command-line interface with ANSI-coded status dashboards.
+- **Zero Dependencies**: Requires only a modern C++ compiler and a standard Linux kernel.
+
+## 📁 Developer Workflow: Importing Files
+
+To run your own scripts or binaries inside a Vortex container, follow these steps:
+
+### Method A: Using the Guided Menu (Recommended)
+1. Run `sudo ./vortex`.
+2. Select Option **4) Import (Side-load) file**.
+3. Enter the path to your file on the host and its destination in the container.
+
+### Method B: Manual Side-loading
+Since the container's root is the `./rootfs` directory on your host, you can simply copy files:
 
 ```bash
-sudo ./vortex run ./rootfs /bin/sh
+# Copy a script to the container
+cp my_script.sh ./rootfs/usr/bin/
+
+# Launch the container and run the script
+sudo ./vortex run ./rootfs /usr/bin/my_script.sh
 ```
 
-Inside the container, you can verify isolation:
+## 🧪 Automated Testing
+
+Vortex includes a professional-grade integration test suite to verify kernel isolation.
 
 ```bash
-# Check PID
-ps aux
-
-# Check Hostname
-hostname
-
-# Check Filesystem
-ls /
+./test_vortex.sh
 ```
 
-## Project Structure
+## 📖 Architecture
 
-- `src/vortex.cpp`: Main implementation.
-- `Makefile`: Build instructions.
-- `setup_rootfs.sh`: Script to prepare the container image.
-- `rootfs/`: Directory containing the extracted Alpine Linux.
+For a deep dive into how Vortex interacts with the Linux kernel, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## 📄 License
+
+Distributed under the Apache 2.0 License. See `LICENSE` for more information.
