@@ -30,6 +30,19 @@ struct ContainerConfig {
     std::vector<std::string> args;
 };
 
+void clear_screen() {
+    std::cerr << "\033[2J\033[1;1H";
+}
+
+void print_logo() {
+    std::cerr << BOLD << BLUE <<
+    "    __     __              _                 \n"
+    "    \\ \\   / /__  _ __  ___| |_ ___  __  __   \n"
+    "     \\ \\ / / _ \\| '__|/ __| __/ _ \\ \\ \\/ /   \n"
+    "      \\ V / (_) | |  | (__| ||  __/  >  <    \n"
+    "       \\_/ \\___/|_|   \\___|\\__\\___| /_/\\_\\   \n" << RESET;
+}
+
 void print_header() {
     std::cerr << BOLD << BLUE << "========================================" << RESET << std::endl;
     std::cerr << BOLD << CYAN << "          VORTEX RUNTIME v1.1           " << RESET << std::endl;
@@ -80,17 +93,19 @@ void setup_cgroups(pid_t child_pid) {
     int fd = open((cgroup_base + "/cgroup.procs").c_str(), O_WRONLY);
     if (fd != -1) {
         std::string pid_str = std::to_string(child_pid);
-        write(fd, pid_str.c_str(), pid_str.length());
+        if (write(fd, pid_str.c_str(), pid_str.length()) == -1) perror("cgroup write");
         close(fd);
     }
     fd = open((cgroup_base + "/memory.max").c_str(), O_WRONLY);
     if (fd != -1) {
-        write(fd, "104857600", 9);
+        if (write(fd, "104857600", 9) == -1) perror("cgroup limit write");
         close(fd);
     }
 }
 
 int run_vortex(ContainerConfig& config) {
+    clear_screen();
+    print_header();
     log_status("Isolating UTS Namespace", true);
     log_status("Isolating PID Namespace", true);
     log_status("Isolating Network Namespace", true);
@@ -124,6 +139,8 @@ int run_vortex(ContainerConfig& config) {
 
 void show_menu() {
     while (true) {
+        clear_screen();
+        print_logo();
         print_header();
         std::cerr << "\n" << BOLD << YELLOW << "  MANAGEMENT CONSOLE" << RESET << "\n";
         std::cerr << "  1) " << CYAN << "Launch Interactive Shell (Alpine)" << RESET << "\n";
@@ -134,28 +151,44 @@ void show_menu() {
         std::cerr << "\n  Select option [1-5]: ";
 
         std::string input;
-        std::cin >> input;
+        if (!std::getline(std::cin, input)) break;
 
         if (input == "1") {
             ContainerConfig config = {"./rootfs", "vortex-container", {"/bin/sh"}};
             run_vortex(config);
         } else if (input == "2") {
+            clear_screen();
             system("./test_vortex.sh");
         } else if (input == "3") {
+            clear_screen();
+            std::cerr << BOLD << YELLOW << "--- Architecture Docs ---\n" << RESET;
             system("cat ARCHITECTURE.md");
         } else if (input == "4") {
+            clear_screen();
+            std::cerr << BOLD << YELLOW << "--- File Import Utility ---\n" << RESET;
+            std::cerr << "  Example Host Path: " << CYAN << "./my_script.sh" << RESET << "\n";
+            std::cerr << "  Example Dest Path: " << CYAN << "/bin/my_script.sh" << RESET << "\n";
+            std::cerr << "  (Type 'q' to return to menu)\n\n";
+            
             std::string src, dest;
-            std::cerr << "  Enter host file path: "; std::cin >> src;
-            std::cerr << "  Enter container dest path (e.g. /script.sh): "; std::cin >> dest;
+            std::cerr << "  Enter host file path: "; if (!std::getline(std::cin, src) || src == "q") continue;
+            std::cerr << "  Enter container dest path: "; if (!std::getline(std::cin, dest) || dest == "q") continue;
+            
             std::string cmd = "cp " + src + " ./rootfs" + dest + " && chmod +x ./rootfs" + dest;
-            if (system(cmd.c_str()) == 0) std::cerr << GREEN << "  File imported successfully!\n" << RESET;
-            else std::cerr << RED << "  Import failed.\n" << RESET;
+            if (system(cmd.c_str()) == 0) {
+                std::cerr << "\n" << GREEN << "  [SUCCESS] " << RESET << "File imported and made executable.\n";
+            } else {
+                std::cerr << "\n" << RED << "  [ERROR] " << RESET << "Could not copy file. Check paths.\n";
+            }
         } else if (input == "5") {
             break;
+        } else {
+            continue;
         }
-        std::cerr << "\nPress Enter to return to menu...";
-        std::cin.ignore(1000, '\n');
-        std::cin.get();
+        
+        std::cerr << "\n" << BOLD << "Press Enter to return to menu..." << RESET;
+        std::string dummy;
+        std::getline(std::cin, dummy);
     }
 }
 
