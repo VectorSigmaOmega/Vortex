@@ -1,6 +1,6 @@
 # 🌀 Vortex Container Runtime
 
-![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg) 
+![License](https://img.shields.io/badge/license-MIT-green.svg) 
 ![C++](https://img.shields.io/badge/C%2B%2B-20-orange.svg) 
 ![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey.svg)
 ![Build](https://img.shields.io/badge/Build-Passing-brightgreen.svg)
@@ -69,4 +69,4 @@ For a deep dive into how Vortex interacts with the Linux kernel, see [ARCHITECTU
 
 ## 📄 License
 
-Distributed under the Apache 2.0 License. See `LICENSE` for more information.
+Distributed under the MIT License. See `LICENSE` for more information.
