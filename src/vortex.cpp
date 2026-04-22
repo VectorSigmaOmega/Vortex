@@ -33,22 +33,24 @@ struct ContainerConfig {
 };
 
 void clear_screen() {
-    std::cerr << "\033[2J\033[1;1H";
+    auto res = write(STDERR_FILENO, "\033[2J\033[1;1H", 11);
+    (void)res;
 }
 
 void print_logo() {
     std::cerr << BOLD << BLUE <<
-    "    __     __              _                 \n"
-    "    \\ \\   / /__  _ __  ___| |_ ___  __  __   \n"
-    "     \\ \\ / / _ \\| '__|/ __| __/ _ \\ \\ \\/ /   \n"
-    "      \\ V / (_) | |  | (__| ||  __/  >  <    \n"
-    "       \\_/ \\___/|_|   \\___|\\__\\___| /_/\\_\\   \n" << RESET;
+    " ____   ____            __                  \n"
+    " \\   \\ /   /___________/  |_  ____ ___  ___ \n"
+    "  \\   Y   /  _ \\_  __ \\   __\\/ __ \\  \\/  / \n"
+    "   \\     (  <_> )  | \\/|  | \\  ___/ >    < \n"
+    "    \\___/ \\____/|__|   |__|  \\___  >__/\\_ \\ \n"
+    "                                 \\/      \\/   \n" <<RESET;                             
 }
 
 void print_header() {
-    std::cerr << BOLD << BLUE << "  ========================================" << RESET << std::endl;
-    std::cerr << BOLD << CYAN << "            VORTEX RUNTIME v1.1           " << RESET << std::endl;
-    std::cerr << BOLD << BLUE << "  ========================================" << RESET << std::endl;
+    std::cerr << BOLD << BLUE << "  ================================================" << RESET << std::endl;
+    std::cerr << BOLD << CYAN << "               VORTEX RUNTIME v1.1                " << RESET << std::endl;
+    std::cerr << BOLD << BLUE << "  ================================================" << RESET << std::endl;
 }
 
 void render_ui(const std::string& title = "MANAGEMENT CONSOLE") {
@@ -79,7 +81,8 @@ int container_main(void* arg) {
 
     if (mount("proc", "/proc", "proc", 0, NULL) == -1) return 1;
     if (mount("sysfs", "/sys", "sysfs", 0, NULL) == -1) return 1;
-    system("ip link set lo up > /dev/null 2>&1");
+    auto res = system("ip link set lo up > /dev/null 2>&1");
+    (void)res;
 
     char** argv = new char*[config->args.size() + 1];
     for (size_t i = 0; i < config->args.size(); ++i) {
@@ -98,16 +101,16 @@ int container_main(void* arg) {
 
 void setup_cgroups(pid_t child_pid) {
     std::string cgroup_base = "/sys/fs/cgroup/vortex";
-    mkdir(cgroup_base.c_str(), 0755);
+    auto res_mkdir = mkdir(cgroup_base.c_str(), 0755); (void)res_mkdir;
     int fd = open((cgroup_base + "/cgroup.procs").c_str(), O_WRONLY);
     if (fd != -1) {
         std::string pid_str = std::to_string(child_pid);
-        write(fd, pid_str.c_str(), pid_str.length());
+        auto res_w = write(fd, pid_str.c_str(), pid_str.length()); (void)res_w;
         close(fd);
     }
     fd = open((cgroup_base + "/memory.max").c_str(), O_WRONLY);
     if (fd != -1) {
-        write(fd, "104857600", 9);
+        auto res_w = write(fd, "104857600", 9); (void)res_w;
         close(fd);
     }
 }
@@ -143,7 +146,7 @@ int run_vortex(ContainerConfig& config, bool interactive = true) {
     log_status("Applying Cgroup v2 Limits", true);
 
     waitpid(pid, nullptr, 0);
-    rmdir("/sys/fs/cgroup/vortex");
+    auto res_rm = rmdir("/sys/fs/cgroup/vortex"); (void)res_rm;
     delete[] stack;
 
     signal(SIGTTOU, SIG_IGN);
@@ -152,9 +155,9 @@ int run_vortex(ContainerConfig& config, bool interactive = true) {
     signal(SIGTTOU, SIG_DFL);
 
     if (interactive) {
-        std::cerr << BOLD << BLUE << "\n  ========================================" << RESET << std::endl;
-        std::cerr << GREEN << "        Vortex Container Terminated       " << RESET << std::endl;
-        std::cerr << BOLD << BLUE << "  ========================================" << RESET << std::endl;
+        std::cerr << BOLD << BLUE << "\n  ================================================" << RESET << std::endl;
+        std::cerr << GREEN << "          Vortex Container Terminated           " << RESET << std::endl;
+        std::cerr << BOLD << BLUE << "  ================================================" << RESET << std::endl;
     }
     return 0;
 }
@@ -178,11 +181,11 @@ void show_menu() {
             continue; 
         } else if (input == "2") {
             render_ui("SYSTEM HEALTH CHECK");
-            system("./test_vortex.sh");
+            auto res = system("./test_vortex.sh"); (void)res;
         } else if (input == "3") {
             render_ui("ARCHITECTURE DOCUMENTATION");
             std::cerr << "\n";
-            system("cat ARCHITECTURE.md | sed 's/^/  /'");
+            auto res = system("cat ARCHITECTURE.md | sed 's/^/  /'"); (void)res;
         } else if (input == "4") {
             render_ui("FILE IMPORT UTILITY");
             std::cerr << "  Example Host Path: " << CYAN << "./my_script.sh" << RESET << "\n";
@@ -202,6 +205,8 @@ void show_menu() {
         } else if (input == "5") {
             break;
         } else {
+            std::cerr << RED << "  [!] Invalid option. Please select 1-5." << RESET << std::endl;
+            usleep(800000);
             continue;
         }
         
