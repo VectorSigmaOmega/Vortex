@@ -15,7 +15,7 @@ Vortex is a high-performance, minimalist Linux container runtime built from the 
          \___/ \____/|__|   |__|  \___  >__/\_ \
                                       \/      \/
 
-       - Isolated. Secure. Minimalist. -
+            - Isolated. Secure. Minimalist. -
 ```
 
 ## 🚀 Quick Start (Guided Mode)
