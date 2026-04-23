@@ -172,16 +172,16 @@ void setup_cgroups(pid_t child_pid, long limit_mb) {
     }
 }
 
-long read_cgroup_value(const std::string& filename) {
+double read_cgroup_value(const std::string& filename) {
     std::ifstream file("/sys/fs/cgroup/vortex/" + filename);
-    if (!file.is_open()) return 0;
+    if (!file.is_open()) return 0.0;
     std::string val;
     file >> val;
     try {
-        if (val == "max") return 0;
-        return std::stol(val) / (1024 * 1024);
+        if (val == "max" || val.empty()) return 0.0;
+        return std::stod(val) / (1024.0 * 1024.0);
     } catch (...) {
-        return 0;
+        return 0.0;
     }
 }
 
@@ -217,48 +217,17 @@ int run_vortex(ContainerConfig& config, bool interactive = true) {
     log_status("Applying Limits (" + std::to_string(config.memory_limit_mb) + "MB)", true);
 
     int status;
+    double peak = 0.0;
     
-    if (interactive) {
-        struct winsize w;
-        if (ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_row > 1) {
-            std::string scroll_cmd = "\033[1;" + std::to_string(w.ws_row - 1) + "r";
-            auto res = write(STDERR_FILENO, scroll_cmd.c_str(), scroll_cmd.length());
-            (void)res;
-        }
-    }
-
     while (waitpid(pid, &status, WNOHANG) == 0) {
-        if (interactive) {
-            long mem = read_cgroup_value("memory.current");
-            if (mem == 0) mem = read_cgroup_value("memory.usage_in_bytes"); // fallback
-            
-            struct winsize w;
-            if (ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_row > 1) {
-                std::string monitor = "\0337"; // Save cursor
-                monitor += "\033[" + std::to_string(w.ws_row) + ";1H"; // Move to bottom
-                monitor += "\033[2K"; // Clear line
-                monitor += "\033[1;34m[ VORTEX MONITOR ]\033[0m Current Memory: " + std::to_string(mem) + " MB / " + std::to_string(config.memory_limit_mb) + " MB";
-                monitor += "\0338"; // Restore cursor
-                
-                auto res = write(STDERR_FILENO, monitor.c_str(), monitor.length());
-                (void)res;
-            }
-        }
-        usleep(500000); // 500ms
+        double current = read_cgroup_value("memory.current");
+        if (current == 0.0) current = read_cgroup_value("memory.usage_in_bytes"); // fallback
+        if (current > peak) peak = current;
+        usleep(100000); // 100ms
     }
 
-    if (interactive) {
-        std::string reset_scroll = "\033[r";
-        auto res = write(STDERR_FILENO, reset_scroll.c_str(), reset_scroll.length());
-        (void)res;
-        
-        struct winsize w;
-        if (ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_row > 1) {
-            std::string clear_bottom = "\0337\033[" + std::to_string(w.ws_row) + ";1H\033[2K\0338";
-            auto res2 = write(STDERR_FILENO, clear_bottom.c_str(), clear_bottom.length());
-            (void)res2;
-        }
-    }
+    double kernel_peak = read_cgroup_value("memory.peak");
+    if (kernel_peak > peak) peak = kernel_peak;
 
     (void)rmdir("/sys/fs/cgroup/vortex"); 
     delete[] stack;
@@ -273,6 +242,12 @@ int run_vortex(ContainerConfig& config, bool interactive = true) {
         std::cerr << GREEN << "          Vortex Container Terminated           " << RESET << std::endl;
         if (WIFSIGNALED(status)) {
             std::cerr << "          Process terminated by signal: " << BOLD << RED << strsignal(WTERMSIG(status)) << RESET << std::endl;
+        }
+        if (peak > 0.0) {
+            std::cerr << std::fixed << std::setprecision(2);
+            std::cerr << "          Peak Memory Usage: " << BOLD << YELLOW << peak << " MB" << RESET << std::endl;
+        } else {
+            std::cerr << "          Resource monitoring was unavailable." << std::endl;
         }
         std::cerr << BOLD << BLUE << "  ================================================" << RESET << std::endl;
     }
