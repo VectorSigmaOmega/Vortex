@@ -31,9 +31,13 @@ sudo ./vortex
 ## 🛠 Features
 
 - **Namespace Isolation**: Full UTS, PID, Mount, and Network stack isolation.
+- **Dynamic Networking**: Toggle between **Isolated** (Air-gapped) and **Shared** (Internet access) modes via the settings menu.
 - **Filesystem Jail**: Securely jails processes using `pivot_root` (more robust than `chroot`).
-- **Resource Limits**: Enforces hardware limits (CPU/Memory) via **Cgroups v2**.
-- **Modern TUI**: A polished command-line interface with ANSI-coded status dashboards.
+- **Resource Control**: 
+  - Configurable hardware limits (Memory) via **Cgroups v2**.
+  - **Strict Enforcement**: Automatically disables swap usage to ensure containers never exceed physical RAM limits.
+- **Persistent Settings**: Your preferences are saved to `.vortex_prefs`, creating a consistent environment across different sessions.
+- **Modern TUI**: A polished command-line interface with ANSI-coded status dashboards and unified layout.
 - **Zero Dependencies**: Requires only a modern C++ compiler and a standard Linux kernel.
 
 ## 📁 Developer Workflow: Importing Files
@@ -58,10 +62,14 @@ sudo ./vortex run ./rootfs /usr/bin/my_script.sh
 
 ## 🧪 Automated Testing
 
-Vortex includes a professional-grade integration test suite to verify kernel isolation.
+Vortex includes an engineering-grade integration test suite to verify kernel isolation and feature enforcement.
 
 ```bash
+# Verify base isolation (UTS, PID, Mount, Net)
 ./tests/test_vortex.sh
+
+# Verify enhanced features (Memory limits, Shared networking)
+./tests/test_vortex_enhanced.sh
 ```
 
 ## 📖 Architecture
