@@ -28,16 +28,25 @@ make
 sudo ./vortex
 ```
 
+## ⚙️ Configuration
+
+Vortex settings can be adjusted on-the-fly via the **Settings Menu (Option 5)** or via CLI flags. These preferences are persisted in `.vortex_prefs`.
+
+- **Network Mode**: 
+  - **Isolated**: Air-gapped environment (default).
+  - **Shared**: Grants the container access to the host's internet (useful for `apk add` commands).
+- **Memory Limit**: Define a hard cap for the container's RAM usage. Vortex validates this against your physical `MemTotal` to prevent invalid configurations.
+
 ## 🛠 Features
 
 - **Namespace Isolation**: Full UTS, PID, Mount, and Network stack isolation.
-- **Dynamic Networking**: Toggle between **Isolated** (Air-gapped) and **Shared** (Internet access) modes via the settings menu.
-- **Filesystem Jail**: Securely jails processes using `pivot_root` (more robust than `chroot`).
+- **Dynamic Networking**: Toggle between **Isolated** and **Shared** modes without recompilation.
+- **Filesystem Jail**: Securely jails processes using `pivot_root`.
 - **Resource Control**: 
-  - Configurable hardware limits (Memory) via **Cgroups v2**.
-  - **Strict Enforcement**: Automatically disables swap usage to ensure containers never exceed physical RAM limits.
-- **Persistent Settings**: Your preferences are saved to `.vortex_prefs`, creating a consistent environment across different sessions.
-- **Modern TUI**: A polished command-line interface with ANSI-coded status dashboards and unified layout.
+  - Configurable memory limits via **Cgroups v2**.
+  - **Strict Enforcement**: Disables swap usage to ensure the memory limit is an absolute hard cap.
+- **Persistent Settings**: Remembers your configuration across sessions.
+- **Modern TUI**: A polished command-line interface with ANSI-coded status dashboards.
 - **Zero Dependencies**: Requires only a modern C++ compiler and a standard Linux kernel.
 
 ## 📁 Developer Workflow: Importing Files
@@ -71,6 +80,16 @@ Vortex includes an engineering-grade integration test suite to verify kernel iso
 # Verify enhanced features (Memory limits, Shared networking)
 ./tests/test_vortex_enhanced.sh
 ```
+
+## 🔥 Stress Testing: The OOM Killer
+
+To see Vortex's resource control in action, use the provided memory stress test:
+
+1. **Build the Hog**: `g++ -static examples/hog.cpp -o examples/hog`
+2. **Import**: Select Option 4 in Vortex to move `examples/hog` to `/bin/hog`.
+3. **Configure**: Set a 100MB limit in the Settings menu.
+4. **Execute**: Launch the shell and run `hog`.
+5. **Watch**: The Linux Kernel will instantly terminate the process when the limit is touched.
 
 ## 📖 Architecture
 
