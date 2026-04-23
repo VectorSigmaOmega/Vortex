@@ -2,3 +2,4 @@ vortex
 rootfs/
 alpine-minirootfs.tar.gz
 .old_root/
+.vortex_prefs

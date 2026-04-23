@@ -47,8 +47,12 @@ void save_prefs() {
 void load_prefs() {
     std::ifstream file(PREFS_FILE);
     if (file.is_open()) {
-        file >> global_prefs.memory_limit_mb;
-        file >> global_prefs.network_isolated;
+        long mem;
+        bool net;
+        if (file >> mem >> net) {
+            global_prefs.memory_limit_mb = mem;
+            global_prefs.network_isolated = net;
+        }
         file.close();
     }
 }
@@ -169,6 +173,11 @@ void setup_cgroups(pid_t child_pid, long limit_mb) {
         auto res_w = write(fd, limit_str.c_str(), limit_str.length()); (void)res_w;
         close(fd);
     }
+    fd = open((cgroup_base + "/memory.swap.max").c_str(), O_WRONLY);
+    if (fd != -1) {
+        auto res_w = write(fd, "0", 1); (void)res_w;
+        close(fd);
+    }
 }
 
 int run_vortex(ContainerConfig& config, bool interactive = true) {
@@ -205,8 +214,7 @@ int run_vortex(ContainerConfig& config, bool interactive = true) {
     int status;
     waitpid(pid, &status, 0);
 
-    auto res_rm = rmdir("/sys/fs/cgroup/vortex"); 
-    (void)res_rm;
+    (void)rmdir("/sys/fs/cgroup/vortex"); 
     delete[] stack;
 
     signal(SIGTTOU, SIG_IGN);
@@ -214,14 +222,6 @@ int run_vortex(ContainerConfig& config, bool interactive = true) {
     tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
     signal(SIGTTOU, SIG_DFL);
 
-    if (interactive) {
-        std::cerr << BOLD << BLUE << "\n  ================================================" << RESET << std::endl;
-        std::cerr << GREEN << "          Vortex Container Terminated           " << RESET << std::endl;
-        if (WIFSIGNALED(status)) {
-            std::cerr << "          Process terminated by signal: " << BOLD << RED << strsignal(WTERMSIG(status)) << RESET << std::endl;
-        }
-        std::cerr << BOLD << BLUE << "  ================================================" << RESET << std::endl;
-    }
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
 }
 
@@ -255,6 +255,10 @@ void show_settings() {
             save_prefs();
         } else if (input == "3") {
             break;
+        } else {
+            std::cerr << RED << "  [!] Invalid option. Please select 1-3." << RESET << std::endl;
+            usleep(800000);
+            continue;
         }
     }
 }
