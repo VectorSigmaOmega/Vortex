@@ -8,12 +8,13 @@
 Vortex is a high-performance, minimalist Linux container runtime built from the ground up in modern C++. It provides a "zero-dependency" approach to process isolation, resource limiting, and filesystem sandboxing.
 
 ```text
-      __     __         _            
-      \ \   / /__  _ __| |_ _____  __
-       \ \ / / _ \| '__| __/ _ \ \/ /
-        \ V / (_) | |  | ||  __/>  < 
-         \_/ \___/|_|   \__\___/_/\_\
-                                             
+      ____   ____            __                 
+      \   \ /   /___________/  |_  ____ ___  ___
+       \   Y   /  _ \_  __ \   __\/ __ \\  \/  /
+        \     (  <_> )  | \/|  | \  ___/ >    < 
+         \___/ \____/|__|   |__|  \___  >__/\_ \
+                                      \/      \/
+
        - Isolated. Secure. Minimalist. -
 ```
 
